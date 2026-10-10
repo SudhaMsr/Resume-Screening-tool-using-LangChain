@@ -1,9 +1,8 @@
 """
-Offline screener: no API key, no network.
+Scorer: no API key, no network.
 
 Scores a CV by (a) how many of the job's required and preferred skills it evidences and
-(b) TF-IDF similarity to the job description. Used on its own for a free first pass, and
-by the pipeline to shortlist CVs before sending only the best ones to Claude.
+(b) TF-IDF similarity to the job description.
 """
 
 from __future__ import annotations

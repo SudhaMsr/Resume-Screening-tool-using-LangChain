@@ -2,15 +2,13 @@
 Command line:
 
     python -m resume_screener --job samples/job_description.md --resumes samples/resumes
-    python -m resume_screener --job jd.md --resumes cvs/ --shortlist 10 --csv ranking.csv
-    python -m resume_screener --job jd.md --resumes cvs/ --offline      # no API key needed
+    python -m resume_screener --job jd.md --resumes cvs/ --csv ranking.csv
 """
 
 from __future__ import annotations
 
 import argparse
 import csv
-import os
 import sys
 from pathlib import Path
 
@@ -24,8 +22,6 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="resume_screener", description="Rank CVs against a job description.")
     ap.add_argument("--job", required=True, help="job description file (.md or .txt)")
     ap.add_argument("--resumes", required=True, help="folder of CVs (.pdf, .docx, .txt, .md)")
-    ap.add_argument("--shortlist", type=int, default=5, help="how many top CVs Claude assesses (default 5)")
-    ap.add_argument("--offline", action="store_true", help="skip Claude; keyword + TF-IDF scoring only")
     ap.add_argument("--csv", help="also write the ranking to this CSV file")
     args = ap.parse_args(argv)
 
@@ -35,22 +31,13 @@ def main(argv: list[str] | None = None) -> int:
         print(f"No CVs found in {args.resumes}", file=sys.stderr)
         return 1
 
-    chain = None
-    if not args.offline:
-        if not (os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN")):
-            print("No ANTHROPIC_API_KEY set, so running offline. Set it to have Claude assess the shortlist.\n", file=sys.stderr)
-        else:
-            from .claude import build_chain
+    ranking = screen(docs, job)
 
-            chain = build_chain()
-
-    ranking = screen(docs, job, claude_chain=chain, shortlist=args.shortlist, on_progress=lambda m: print(m, file=sys.stderr))
-
-    print(f"\n{'#':>2}  {'Candidate':<13} {'Score':>5}  {'Verdict':<10} {'Scored by':<9}  File")
-    print("-" * 72)
+    print(f"\n{'#':>2}  {'Candidate':<13} {'Score':>5}  {'Verdict':<10} File")
+    print("-" * 60)
     for i, r in enumerate(ranking, 1):
         a = r.assessment
-        print(f"{i:>2}  {r.candidate_id:<13} {a.match_score:>5}  {LABEL[a.recommendation]:<10} {r.method:<9}  {r.source}")
+        print(f"{i:>2}  {r.candidate_id:<13} {a.match_score:>5}  {LABEL[a.recommendation]:<10} {r.source}")
     best = ranking[0].assessment
     print(f"\nTop candidate: {best.summary}")
     if best.missing_skills:
@@ -59,10 +46,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.csv:
         with open(args.csv, "w", newline="", encoding="utf-8") as f:
             w = csv.writer(f)
-            w.writerow(["rank", "candidate", "file", "score", "recommendation", "method", "matched_skills", "missing_skills", "summary"])
+            w.writerow(["rank", "candidate", "file", "score", "recommendation", "matched_skills", "missing_skills", "summary"])
             for i, r in enumerate(ranking, 1):
                 a = r.assessment
-                w.writerow([i, r.candidate_id, r.source, a.match_score, a.recommendation, r.method,
+                w.writerow([i, r.candidate_id, r.source, a.match_score, a.recommendation,
                             "; ".join(a.matched_skills), "; ".join(a.missing_skills), a.summary])
         print(f"\nWrote {args.csv}")
     return 0

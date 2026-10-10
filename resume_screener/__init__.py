@@ -1,4 +1,4 @@
-"""Rank CVs against a job description with LangChain and Claude."""
+"""Rank CVs against a job description with LangChain."""
 
 from .loaders import ResumeLoader, UploadedResumeLoader
 from .pipeline import screen

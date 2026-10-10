@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import pandas as pd
@@ -19,13 +18,8 @@ st.caption("Rank CVs against a job description. CVs are anonymised before scorin
 
 with st.sidebar:
     st.header("Settings")
-    has_key = bool(os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN"))
-    use_claude = st.toggle("Assess the shortlist with Claude", value=has_key, disabled=not has_key,
-                           help="Needs ANTHROPIC_API_KEY. Off = free keyword + TF-IDF scoring.")
-    if not has_key:
-        st.info("No ANTHROPIC_API_KEY found, so scoring runs offline (keyword + TF-IDF).")
-    shortlist = st.slider("Shortlist size for Claude", 1, 20, 5, disabled=not use_claude)
     use_samples = st.checkbox("Use the sample job and CVs", value=True)
+    st.caption("Runs entirely offline: skill matching + TF-IDF. No API key needed.")
 
 left, right = st.columns([1, 1])
 with left:
@@ -43,18 +37,11 @@ if st.button("Rank candidates", type="primary", disabled=not job.strip()):
         st.warning("Add at least one CV.")
         st.stop()
 
-    chain = None
-    if use_claude:
-        from resume_screener.claude import build_chain
-
-        chain = build_chain()
-    with st.status("Screening…", expanded=False) as status:
-        ranking = screen(docs, job, claude_chain=chain, shortlist=shortlist, on_progress=status.write)
-        status.update(label=f"Ranked {len(ranking)} CVs", state="complete")
+    ranking = screen(docs, job)
 
     table = pd.DataFrame([{
         "Rank": i, "Candidate": r.candidate_id, "Score": r.assessment.match_score,
-        "Verdict": LABEL[r.assessment.recommendation], "Scored by": r.method.title(), "File": r.source,
+        "Verdict": LABEL[r.assessment.recommendation], "File": r.source,
         "Missing": ", ".join(r.assessment.missing_skills) or "–",
     } for i, r in enumerate(ranking, 1)])
     st.dataframe(table, hide_index=True, use_container_width=True,

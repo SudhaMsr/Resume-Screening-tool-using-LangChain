@@ -1,4 +1,4 @@
-"""The structured assessment every screener (Claude or offline) returns for one CV."""
+"""The structured assessment returned for each CV."""
 
 from __future__ import annotations
 
@@ -26,4 +26,3 @@ class RankedCandidate(BaseModel):
     candidate_id: str
     source: str
     assessment: CandidateAssessment
-    method: Literal["claude", "offline"]

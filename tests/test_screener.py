@@ -1,23 +1,11 @@
 from pathlib import Path
-from types import SimpleNamespace
-from unittest.mock import MagicMock
-
-import pytest
-from langchain_core.documents import Document
 
 from resume_screener import ResumeLoader, screen
 from resume_screener.anonymize import anonymize_text
-from resume_screener.claude import RefusedError, build_chain
 from resume_screener.offline import assess, split_job_skills
-from resume_screener.schema import CandidateAssessment
 
 SAMPLES = Path(__file__).parent.parent / "samples"
 JOB = (SAMPLES / "job_description.md").read_text()
-
-
-def fake_assessment(score: int) -> CandidateAssessment:
-    return CandidateAssessment(match_score=score, recommendation="yes", summary="ok", matched_skills=["Python"],
-                               missing_skills=[], strengths=["s"], concerns=[], years_experience=3)
 
 
 # ── anonymisation
@@ -57,50 +45,13 @@ def test_offline_ranks_relevant_cv_above_unrelated():
     assert 0 <= weak.match_score <= 100 and strong.recommendation in {"yes", "strong_yes"}
 
 
-# ── Claude chain (mocked: no network)
-
-def mocked_client(parsed, stop_reason="end_turn"):
-    client = MagicMock()
-    client.beta.messages.parse.return_value = SimpleNamespace(parsed_output=parsed, stop_reason=stop_reason)
-    return client
-
-
-def test_claude_chain_sends_anonymised_cv_and_schema():
-    client = mocked_client(fake_assessment(88))
-    result = build_chain(client).invoke({"job": "Need Python", "cv": "[CANDIDATE]\nPython for 5 years"})
-    assert result.match_score == 88
-    kwargs = client.beta.messages.parse.call_args.kwargs
-    assert kwargs["output_format"] is CandidateAssessment
-    assert kwargs["model"] == "claude-opus-5"
-    assert kwargs["fallbacks"] == "default"
-    assert "<cv>\n[CANDIDATE]\nPython for 5 years\n</cv>" in kwargs["messages"][0]["content"]
-    assert "protected characteristic" in kwargs["system"]
-
-
-def test_claude_refusal_raises():
-    with pytest.raises(RefusedError):
-        build_chain(mocked_client(None, "refusal")).invoke({"job": "j", "cv": "c"})
-
-
 # ── pipeline
 
-def test_pipeline_only_sends_shortlist_to_claude():
+def test_pipeline_ranks_and_anonymises():
     docs = ResumeLoader(SAMPLES / "resumes").load()
-    chain = MagicMock()
-    chain.invoke.return_value = fake_assessment(99)
-    ranking = screen(docs, JOB, claude_chain=chain, shortlist=2)
-    assert chain.invoke.call_count == 2
-    assert [r.method for r in ranking].count("claude") == 2
+    ranking = screen(docs, JOB)
     assert len(ranking) == len(docs)
-    assert ranking[0].assessment.match_score == 99
-    # Claude never sees names or emails
-    for call in chain.invoke.call_args_list:
-        assert "@example" not in call.args[0]["cv"]
-
-
-def test_pipeline_keeps_offline_score_when_claude_refuses():
-    chain = MagicMock()
-    chain.invoke.side_effect = RefusedError("declined")
-    docs = [Document(page_content="Python SQL pandas machine learning", metadata={"source": "a.txt"})]
-    ranking = screen(docs, JOB, claude_chain=chain, shortlist=1)
-    assert ranking[0].method == "offline"
+    scores = [r.assessment.match_score for r in ranking]
+    assert scores == sorted(scores, reverse=True)
+    assert ranking[0].source == "amara_okafor.md" and ranking[-1].source == "sofia_martins.txt"
+    assert all(r.candidate_id.startswith("Candidate ") for r in ranking)
