@@ -1,0 +1,12 @@
+Daniel Reyes
+daniel.reyes@example.org
+Date of birth: 14/02/1990
+
+Data Analyst, 5 years
+
+- Built Tableau and Power BI dashboards for sales leadership
+- Wrote SQL reports in PostgreSQL; cleaned data with Excel and some pandas
+- Ran basic statistics and regression for quarterly reviews
+- Presented insights to stakeholders across the business
+
+Skills: SQL, Tableau, Power BI, Excel, pandas (intermediate)

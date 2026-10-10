@@ -1,0 +1,11 @@
+Sofia Martins
++351 912 345 678
+
+Frontend Developer, 6 years
+
+- Built React and TypeScript web apps for e-commerce clients
+- Designed component libraries and accessibility improvements
+- Some Python scripting for build tools; used Git and CI/CD pipelines daily
+- Worked closely with designers and product managers
+
+Skills: JavaScript, TypeScript, React, CSS, Git, Docker

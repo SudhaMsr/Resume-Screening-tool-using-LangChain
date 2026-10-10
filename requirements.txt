@@ -1,0 +1,8 @@
+anthropic>=1.13
+langchain-core>=1.0
+pydantic>=2.7
+pypdf>=5.0
+docx2txt>=0.8
+scikit-learn>=1.5
+streamlit>=1.40
+pandas>=2.2
